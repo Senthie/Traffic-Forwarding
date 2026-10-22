@@ -18,6 +18,12 @@ foreach ($toolDir in @('D:\CodePrograms\uv', 'D:\CodePrograms\volta')) {
 Write-Host "[1/3] 构建前端 ..." -ForegroundColor Cyan
 Push-Location (Join-Path $root 'frontend')
 try {
+    # 全新环境（CI / 新克隆）下 node_modules 不存在，先按 lockfile 安装
+    if (-not (Test-Path 'node_modules')) {
+        Write-Host "    未发现 node_modules，执行 npm ci ..." -ForegroundColor DarkGray
+        npm ci --no-fund --no-audit
+        if ($LASTEXITCODE -ne 0) { throw "npm ci 失败" }
+    }
     npm run build
     if ($LASTEXITCODE -ne 0) { throw "前端构建失败" }
 }
