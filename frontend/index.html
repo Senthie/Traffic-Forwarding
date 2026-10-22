@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <title>转发管理器 · Traffic Forwarding</title>
+    <script>
+      // 在首帧前决定主题，避免暗色模式闪白
+      (function () {
+        try {
+          var mode = localStorage.getItem('tfm-theme') || 'system';
+          var dark =
+            mode === 'dark' ||
+            (mode === 'system' &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.classList.toggle('dark', dark);
+          document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+        } catch (e) {
+          /* 隐私模式下 localStorage 不可用时忽略 */
+        }
+      })();
+    </script>
+  </head>
+  <body class="h-full bg-app text-ink antialiased">
+    <div id="root" class="h-full"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

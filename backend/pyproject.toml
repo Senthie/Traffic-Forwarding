@@ -1,0 +1,20 @@
+[project]
+name = "traffic-forwarding-backend"
+version = "0.1.0"
+description = "Local API for managing Windows portproxy rules and firewall openings"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+]
+
+[project.optional-dependencies]
+gui = ["pywebview>=5.1"]
+build = ["pyinstaller>=6.6"]
+
+[tool.uv]
+# 不把本目录安装成可编辑包，避免生成 .pth（路径含中文时会导致 init_import_site 崩溃）
+package = false
+
+[tool.uv.workspace]
+exclude = ["*"]
