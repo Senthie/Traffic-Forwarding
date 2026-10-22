@@ -35,15 +35,18 @@ jobs:
       - name: Install Inno Setup
         run: choco install innosetup --no-progress -y
 
-      - name: Verify tag matches APP_VERSION
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Verify version matches APP_VERSION
         shell: pwsh
         run: |
           $appVersion = (Select-String -Path backend/app/core/config.py -Pattern 'APP_VERSION\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
-          $tag = '${{ github.ref_name }}'.TrimStart('v')
-          Write-Host "tag=$tag  APP_VERSION=$appVersion"
-          if ($appVersion -ne $tag) {
-            throw "tag v$tag 与 APP_VERSION=$appVersion 不一致，请先修改 backend/app/core/config.py"
+          $expected = if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            '${{ inputs.version }}'
+          } else {
+            '${{ github.ref_name }}'.TrimStart('v')
+          }
+          Write-Host "expected=$expected  APP_VERSION=$appVersion"
+          if ($appVersion -ne $expected) {
+            throw "版本号不一致：期望 $expected，但 backend/app/core/config.py 里是 $appVersion"
           }
 
       - name: Build frontend + exe
@@ -70,9 +73,12 @@ jobs:
           retention-days: 7
 
       - name: Publish GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
+          # tag 推送时用现有 tag；手动触发时按输入的版本号创建 tag
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', inputs.version) || github.ref_name }}
+          target_commitish: ${{ github.sha }}
           files: out/*
           generate_release_notes: true
           draft: false
