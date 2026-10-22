@@ -9,7 +9,11 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-$env:PATH = "D:\CodePrograms\uv;D:\CodePrograms\volta;" + $env:PATH
+
+# 本机工具链（目录存在才加；CI 上直接用 PATH 里的 uv / node）
+foreach ($toolDir in @('D:\CodePrograms\uv', 'D:\CodePrograms\volta')) {
+    if (Test-Path $toolDir) { $env:PATH = "$toolDir;" + $env:PATH }
+}
 
 $exe = Join-Path $root 'dist\traffic-forwarding.exe'
 
@@ -27,12 +31,12 @@ if (-not (Test-Path $exe)) {
 
 Write-Host "[2/2] 编译安装包 ..." -ForegroundColor Cyan
 
-$candidates = @(
-    (Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe'),
-    (Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'),
-    (Join-Path $env:ProgramFiles 'Inno Setup 6\ISCC.exe')
-)
-$iscc = $candidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+$candidates = @()
+if ($env:LOCALAPPDATA) { $candidates += (Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe') }
+if (${env:ProgramFiles(x86)}) { $candidates += (Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe') }
+if ($env:ProgramFiles) { $candidates += (Join-Path $env:ProgramFiles 'Inno Setup 6\ISCC.exe') }
+
+$iscc = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $iscc) {
     $cmd = Get-Command iscc.exe -ErrorAction SilentlyContinue
     if ($cmd) { $iscc = $cmd.Source }

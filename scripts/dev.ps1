@@ -7,7 +7,11 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-$env:PATH = "D:\CodePrograms\uv;D:\CodePrograms\volta;" + $env:PATH
+
+# 本机工具链（目录存在才加；CI 上直接用 PATH 里的 uv / node）
+foreach ($toolDir in @('D:\CodePrograms\uv', 'D:\CodePrograms\volta')) {
+    if (Test-Path $toolDir) { $env:PATH = "$toolDir;" + $env:PATH }
+}
 
 Write-Host "启动后端 :$BackendPort ..." -ForegroundColor Cyan
 $backend = Start-Process -FilePath "uv.exe" `
