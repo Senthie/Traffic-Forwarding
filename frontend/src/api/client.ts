@@ -5,6 +5,9 @@ import type {
   OrphanRule,
   Rule,
   RulePayload,
+  ScanEngineInfo,
+  ScanRequest,
+  ScanResult,
   SystemStatus,
   ValidationResult,
 } from './types'
@@ -79,4 +82,12 @@ export const api = {
   logs: (limit = 60) => request<AuditEntry[]>(`/logs?limit=${limit}`),
   orphans: () => request<OrphanRule[]>('/firewall/orphans'),
   exportRules: () => request<{ version: number; exported_at: string; rules: unknown[] }>('/export'),
+
+  scanEngine: (refresh = false) =>
+    request<ScanEngineInfo>(`/scan/engine?refresh=${refresh}`),
+  scanArp: (payload: ScanRequest) =>
+    request<ScanResult>('/scan/arp', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 }

@@ -107,3 +107,48 @@ export interface OrphanRule {
   rule_id: string
   detail: string
 }
+
+export type ScanEngine = 'npcap' | 'fallback'
+
+export interface ScanEngineInfo {
+  engine: ScanEngine
+  npcap_available: boolean
+  npcap_version: string | null
+  npcap_path: string | null
+  admin: boolean
+  reason: string | null
+  note: string | null
+}
+
+export interface ScanRequest {
+  address: string
+  prefix_length: number
+  scope: 'auto' | 'full'
+  timeout?: number
+}
+
+export interface ScanHost {
+  ip: string
+  mac: string | null
+  is_local: boolean
+}
+
+export interface ScanSummary {
+  network: string
+  prefix_length: number
+  interface_alias: string | null
+  interface_address: string
+  engine: ScanEngine
+  total: number
+  alive: number
+  idle: number
+  elapsed_ms: number
+  truncated: boolean
+  warning: string | null
+  checked_at: string
+}
+
+export interface ScanResult {
+  summary: ScanSummary
+  hosts: ScanHost[]
+}

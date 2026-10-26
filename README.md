@@ -375,6 +375,32 @@ def is_admin() -> bool:
 - 打包后的 exe 通过 `app.manifest` 声明 `requireAdministrator`，双击即弹 UAC
 - **只读功能（查看规则、探测）在非管理员下依然可用**，写操作返回 `403` 并在 UI 上置灰
 
+### 7.7 ARP 网段扫描
+
+目标：不靠手工 `ping` 扫段，直接列出**每张网卡所在网段里已被占用的 IP**（含 MAC）。
+
+两种引擎，`summary.engine` 会告诉前端当前用的是哪种：
+
+| 引擎 | 原理 | 依赖 | 特点 |
+| --- | --- | --- | --- |
+| `npcap` | `ctypes` 加载 `wpcap.dll`，构造以太网 + ARP 请求（oper=1）发出，抓 oper=2 的应答 | 安装 Npcap | 能发现禁 Ping 设备，2.5 秒扫完 /24 |
+| `fallback` | 向网段每个地址发一个 UDP 包触发系统 ARP 解析，再读 `Get-NetNeighbor` | 无 | 兜底可用，可能漏报，也可能带出近期缓存条目 |
+
+实现要点：
+
+```python
+# services/arpscan.py
+frame = b"\xff" * 6 + src_mac + b"\x08\x06"            # 以太网头
+frame += struct.pack("!HHBBH", 1, 0x0800, 6, 4, 1)     # ARP 请求
+frame += src_mac + src_ip + b"\x00" * 6 + dst_ip
+```
+
+- **网卡匹配**：`Get-NetAdapter.InterfaceGuid` ↔ Npcap 设备名 `\Device\NPF_{GUID}`，匹配不到再按 `InterfaceDescription` 模糊匹配
+- **报文速率**：每 32 个包 `sleep 2ms`，避免驱动发送队列溢出；未应答目标每 ~0.8 秒重发一次，最多 3 轮
+- **范围控制**：默认 `auto`（前缀小于 /24 时只扫所在 /24）；`full` 按真实前缀扫，超过 1024 个地址截断并在 `warning` 里说明
+- **并发安全**：每次扫描独立 `pcap_open_live`，`扫描全部网卡` 可以并行执行
+- **降级策略**：Npcap 缺失 / 打开网卡失败 / 无 MAC → 自动走回退引擎，前端卡上标记「邻居表回退」
+
 ---
 
 ## 8. API 契约
@@ -396,6 +422,8 @@ Base：`http://127.0.0.1:<port>/api`
 | `GET` | `/logs?limit=100` | 审计日志 |
 | `GET` | `/export` | 导出全部规则为 JSON（换机迁移） |
 | `POST` | `/import` | 从 JSON 导入并重建规则 |
+| `GET` | `/scan/engine` | 当前扫描引擎：`npcap` / `fallback`，含 Npcap 版本与路径 |
+| `POST` | `/scan/arp` | 扫描指定网卡所在网段：入参 `{address, prefix_length, scope, timeout}`，返回汇总 + 在线主机（IP/MAC） |
 | `WS` | `/ws/events` | 实时推送探测结果与命令执行进度 |
 
 FastAPI 自动生成 `/docs`，前端类型由 OpenAPI 生成（`openapi-typescript`），保证前后端契约同源、不手写类型。
@@ -420,6 +448,7 @@ FastAPI 自动生成 `/docs`，前端类型由 OpenAPI 生成（`openapi-typescr
 
 ### 9.2 交互要点
 
+- **顶部标签切换**：「转发规则」与「网段扫描」两个面板同时挂载、仅切换显隐，切换回来扫描结果不会丢
 - **网卡 IP 下拉**：`listen address` 只能从 `GET /system/interfaces` 选择，从根上避免"IP 不存在导致静默失效"
 - **实时预检**：表单填写时前端即调 `/rules/validate` 检查端口冲突、IP 是否本机，错误本地即时报出
 - **健康状态自动轮询**：TanStack Query `refetchInterval` 默认 30s，可关闭
@@ -741,8 +770,8 @@ README 第 13 节列的限制里，有三条是 `portproxy` 本身的能力边�
 
 | 层 | 内容 |
 | --- | --- |
-| 后端 `backend/app` | 注册表读取（双格式）、netsh 增删、netinfo、双段并发探测、防火墙查询/创建/删除、SQLite 元数据与审计、22 个接口 |
-| 前端 `frontend/src` | 规则表格 + 健康徽章 + 防火墙徽章 + 新建/编辑弹窗（实时预检 + 命令预览）+ 删除确认 + 审计日志面板 + 统计卡 |
+| 后端 `backend/app` | 注册表读取（双格式）、netsh 增删、netinfo、双段并发探测、防火墙查询/创建/删除、SQLite 元数据与审计、ARP 网段扫描（Npcap + 回退）、18 个接口 |
+| 前端 `frontend/src` | 规则表格 + 健康徽章 + 防火墙徽章 + 新建/编辑弹窗（实时预检 + 命令预览）+ 删除确认 + 审计日志面板 + 统计卡 + 网段扫描页（按网卡分组、Npcap/回归引擎标记） |
 | 脚本 `scripts` | `dev.ps1`（双服务）、`run_as_admin.ps1`（提权启动）、`build.ps1`（构建 + 复制 + 可选打包）、`build-installer.ps1`（生成 Setup.exe）、`make_icon.py`（图标转换） |
 | 启动器 `launcher` | uvicorn 线程 + pywebview 窗口 + `requireAdministrator` manifest + PyInstaller spec |
 

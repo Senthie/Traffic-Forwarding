@@ -46,6 +46,11 @@
   --color-info-line: rgb(14 165 233 / 0.35);
 }
 
+/* 切换标签时页面高度会变，滚动条出现/消失会让整页横向抖动；始终预留滚动条空间 */
+html {
+  scrollbar-gutter: stable;
+}
+
 .dark {
   --color-app: #020617;
   --color-panel: #0f172a;

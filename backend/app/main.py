@@ -14,7 +14,14 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
-from .api import routes_firewall, routes_logs, routes_probe, routes_rules, routes_system
+from .api import (
+    routes_firewall,
+    routes_logs,
+    routes_probe,
+    routes_rules,
+    routes_scan,
+    routes_system,
+)
 from .core.config import APP_NAME, APP_VERSION, STATIC_DIR, settings
 from .core.elevation import is_admin
 from .services.metadata import Store
@@ -67,6 +74,7 @@ app.include_router(routes_system.router, prefix="/api")
 app.include_router(routes_probe.router, prefix="/api")
 app.include_router(routes_firewall.router, prefix="/api")
 app.include_router(routes_logs.router, prefix="/api")
+app.include_router(routes_scan.router, prefix="/api")
 
 
 @app.get("/api/health", tags=["system"])

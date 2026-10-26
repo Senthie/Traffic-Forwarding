@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { api } from '../api/client'
 import type { HealthInfo, Rule } from '../api/types'
 import { AuditPanel } from '../components/AuditPanel'
@@ -9,12 +10,14 @@ import { RuleTable } from '../components/RuleTable'
 import { ThemeToggle } from '../components/ThemeToggle'
 import { Button, Spinner, cn } from '../components/ui'
 import { useTheme } from '../lib/theme'
+import ScanPage from './ScanPage'
 
 type Toast = { id: number; kind: 'success' | 'error' | 'info'; message: string }
 
 const ADMIN_HINT = '当前未以管理员身份运行：可以查看与探测，但无法新建 / 修改 / 删除规则。'
 
 export default function Dashboard() {
+  const [tab, setTab] = useState<'rules' | 'scan'>('rules')
   const [toasts, setToasts] = useState<Toast[]>([])
   const [health, setHealth] = useState<Record<string, HealthInfo>>({})
   const [probingAll, setProbingAll] = useState(false)
@@ -135,7 +138,7 @@ export default function Dashboard() {
     <div className="min-h-full bg-app">
       <header className="border-b border-line bg-panel">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-3">
-          <div>
+          <div className="min-w-0">
             <h1 className="flex items-center gap-2 text-lg font-semibold text-ink">
               转发管理器
               <span
@@ -155,33 +158,64 @@ export default function Dashboard() {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <ThemeToggle mode={mode} onChange={setTheme} />
-            <label className="mr-1 flex cursor-pointer items-center gap-1.5 text-xs text-ink-3">
-              <input
-                type="checkbox"
-                className="size-3.5 accent-sky-500"
-                checked={autoProbe}
-                onChange={(event) => setAutoProbe(event.target.checked)}
-              />
-              自动探测 30s
-            </label>
+          </div>
+        </div>
 
-            <Button variant="secondary" onClick={() => void rulesQuery.refetch()}>
-              刷新
-            </Button>
-            <Button variant="secondary" onClick={() => void runProbeAll()} disabled={probingAll}>
-              {probingAll ? <Spinner /> : null}
-              探测全部
-            </Button>
-            <Button
-              variant="primary"
-              onClick={() => setDialog({ mode: 'create', rule: null })}
-              disabled={!admin}
-              title={admin ? undefined : '需要管理员权限'}
+        <div className="border-t border-line bg-panel-2">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-2 px-5 py-2">
+            <nav
+              className="flex shrink-0 items-center gap-0.5 rounded-lg border border-line bg-panel p-0.5"
+              role="tablist"
+              aria-label="视图切换"
             >
-              + 新建规则
-            </Button>
+              <TabButton active={tab === 'rules'} onClick={() => setTab('rules')}>
+                转发规则
+              </TabButton>
+              <TabButton active={tab === 'scan'} onClick={() => setTab('scan')}>
+                网段扫描
+              </TabButton>
+            </nav>
+
+            <div className="ml-auto flex min-h-8 flex-wrap items-center justify-end gap-2">
+              {tab === 'rules' ? (
+                <>
+                  <label className="mr-1 flex cursor-pointer items-center gap-1.5 text-xs text-ink-3">
+                    <input
+                      type="checkbox"
+                      className="size-3.5 accent-sky-500"
+                      checked={autoProbe}
+                      onChange={(event) => setAutoProbe(event.target.checked)}
+                    />
+                    自动探测 30s
+                  </label>
+
+                  <Button variant="secondary" onClick={() => void rulesQuery.refetch()}>
+                    刷新
+                  </Button>
+                  <Button variant="secondary" onClick={() => void runProbeAll()} disabled={probingAll}>
+                    {probingAll ? <Spinner /> : null}
+                    探测全部
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={() => setDialog({ mode: 'create', rule: null })}
+                    disabled={!admin}
+                    title={admin ? undefined : '需要管理员权限'}
+                  >
+                    + 新建规则
+                  </Button>
+                </>
+              ) : (
+                <span className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line bg-panel px-2.5 text-xs text-ink-3">
+                  <span className="size-1.5 rounded-full bg-sky-500" aria-hidden="true" />
+                  {interfacesQuery.data
+                    ? `${interfacesQuery.data.filter((item) => !item.is_loopback).length} 张网卡可扫描`
+                    : '正在读取网卡…'}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -194,40 +228,51 @@ export default function Dashboard() {
           </div>
         ) : null}
 
-        {!backendDown && !admin ? (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-warn-line bg-warn-bg px-4 py-3">
-            <p className="text-sm text-warn-ink">{ADMIN_HINT}</p>
-            <Button variant="secondary" onClick={() => void elevate()} disabled={elevating}>
-              {elevating ? <Spinner /> : null}
-              以管理员身份重启
-            </Button>
-          </div>
-        ) : null}
+        <div className={cn(tab === 'rules' ? 'space-y-4' : 'hidden')}>
+          {!backendDown && !admin ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-warn-line bg-warn-bg px-4 py-3">
+              <p className="text-sm text-warn-ink">{ADMIN_HINT}</p>
+              <Button variant="secondary" onClick={() => void elevate()} disabled={elevating}>
+                {elevating ? <Spinner /> : null}
+                以管理员身份重启
+              </Button>
+            </div>
+          ) : null}
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatCard label="规则总数" value={stats.total} tone="slate" />
-          <StatCard label="正常" value={stats.healthy} tone="emerald" />
-          <StatCard label="仅监听" value={stats.halfOpen} tone="amber" />
-          <StatCard label="不通" value={stats.down} tone="rose" />
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <StatCard label="规则总数" value={stats.total} tone="slate" />
+            <StatCard label="正常" value={stats.healthy} tone="emerald" />
+            <StatCard label="仅监听" value={stats.halfOpen} tone="amber" />
+            <StatCard label="不通" value={stats.down} tone="rose" />
+          </div>
+
+          <RuleTable
+            rules={rules}
+            health={health}
+            admin={admin}
+            loading={rulesQuery.isLoading}
+            probingId={probingId}
+            onProbe={(rule) => void probeOne(rule)}
+            onEdit={(rule) => setDialog({ mode: 'edit', rule })}
+            onDelete={(rule) => setDeleteTarget(rule)}
+          />
+
+          <AuditPanel refreshToken={auditToken} />
+
+          <p className="text-center text-[11px] text-ink-4">
+            规则读取自注册表 <span className="font-mono">PortProxy\v4tov4\tcp</span>；
+            写操作通过 netsh 执行，全部记入审计日志。
+          </p>
         </div>
 
-        <RuleTable
-          rules={rules}
-          health={health}
-          admin={admin}
-          loading={rulesQuery.isLoading}
-          probingId={probingId}
-          onProbe={(rule) => void probeOne(rule)}
-          onEdit={(rule) => setDialog({ mode: 'edit', rule })}
-          onDelete={(rule) => setDeleteTarget(rule)}
-        />
-
-        <AuditPanel refreshToken={auditToken} />
-
-        <p className="text-center text-[11px] text-ink-4">
-          规则读取自注册表 <span className="font-mono">PortProxy\v4tov4\tcp</span>；
-          写操作通过 netsh 执行，全部记入审计日志。
-        </p>
+        <div className={cn(tab === 'scan' ? 'block' : 'hidden')}>
+          <ScanPage
+            interfaces={interfacesQuery.data ?? []}
+            loading={interfacesQuery.isLoading}
+            onError={(message) => pushToast('error', message)}
+            onRefresh={() => void interfacesQuery.refetch()}
+          />
+        </div>
       </main>
 
       <RuleDialog
@@ -288,5 +333,33 @@ function StatCard({
       <p className="text-xs text-ink-3">{label}</p>
       <p className={cn('mt-1 text-2xl font-semibold tabular-nums', TONES[tone])}>{value}</p>
     </div>
+  )
+}
+
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className={cn(
+        'inline-flex h-7 min-w-[5.5rem] items-center justify-center rounded-md px-3 text-sm font-medium transition-colors',
+        'focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/60',
+        active
+          ? 'bg-chip font-semibold text-ink shadow-sm'
+          : 'text-ink-3 hover:bg-hover hover:text-ink',
+      )}
+    >
+      {children}
+    </button>
   )
 }
