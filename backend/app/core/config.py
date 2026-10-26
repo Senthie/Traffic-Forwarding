@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 APP_NAME = "TrafficForwarding"
-APP_VERSION = "0.1.0"
+APP_VERSION = "0.2.0"
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 

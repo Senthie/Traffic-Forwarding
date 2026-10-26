@@ -477,7 +477,7 @@ FastAPI 自动生成 `/docs`，前端类型由 OpenAPI 生成（`openapi-typescr
 
 ```powershell
 pwsh -File scripts\build.ps1 -Exe            # → dist\traffic-forwarding.exe（18.7 MB）
-pwsh -File scripts\build-installer.ps1       # → dist\installer\TrafficForwarding-Setup-0.1.0.exe（20.5 MB）
+pwsh -File scripts\build-installer.ps1       # → dist\installer\TrafficForwarding-Setup-0.2.0.exe（20.5 MB）
 ```
 
 `build-installer.ps1` 会先确保 exe 是最新的，再调用 Inno Setup 编译安装包（版本号自动取自 `backend/app/core/config.py` 的 `APP_VERSION`）。
@@ -503,11 +503,11 @@ winget install --id JRSoftware.InnoSetup -e     # 只需在构建机上装一次
 
 ```powershell
 # 安装（IT 下发常用）
-.\TrafficForwarding-Setup-0.1.0.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART `
+.\TrafficForwarding-Setup-0.2.0.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART `
     /LOG="C:\Temp\tf-install.log"
 
 # 自定义目录
-.\TrafficForwarding-Setup-0.1.0.exe /VERYSILENT /DIR="D:\Apps\TrafficForwarding"
+.\TrafficForwarding-Setup-0.2.0.exe /VERYSILENT /DIR="D:\Apps\TrafficForwarding"
 
 # 卸载
 "C:\Program Files\TrafficForwarding\unins000.exe" /VERYSILENT /SUPPRESSMSGBOXES
